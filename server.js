@@ -15,24 +15,33 @@ const OPENCLAW_TARGET = process.env.OPENCLAW_INTERNAL_URL || 'http://127.0.0.1:1
 const proxy = httpProxy.createProxyServer({
   target: OPENCLAW_TARGET,
   changeOrigin: true,
-  ws: true // Habilitar soporte de WebSockets
+  ws: true,
+  xfwd: true
 });
 
 // Manejo de errores del proxy
 proxy.on('error', (err, req, res) => {
-  console.error('[Proxy Error]:', err.message);
+  console.error('❌ [Proxy Error]:', err.code || 'UNKNOWN', err.message);
+  
   if (res && res.writeHead) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end('Something went wrong in the proxy bridge.');
+  } else if (res && res.destroy) {
+    // Si res es un socket (en caso de error de WebSocket)
+    res.destroy();
   }
 });
 
 // LOGS DE CONEXIÓN WS
 proxy.on('open', (proxySocket) => {
   console.log('✅ [Proxy] Puente WebSocket abierto con OpenClaw.');
+  
+  proxySocket.on('error', (err) => {
+    console.error('❌ [Socket Error]:', err.message);
+  });
 });
 
-proxy.on('close', (res, socket, head) => {
+proxy.on('close', (proxyRes, proxySocket, proxyHead) => {
   console.log('ℹ️ [Proxy] Puente WebSocket cerrado.');
 });
 
