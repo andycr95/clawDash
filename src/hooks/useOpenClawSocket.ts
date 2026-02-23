@@ -13,19 +13,20 @@ type OpenClawEvent =
 
 const getWsUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_OPENCLAW_WS_URL;
-
+  const token = process.env.NEXT_PUBLIC_OPENCLAW_TOKEN;
+  
   if (typeof window === 'undefined') return '';
-
-  // Si la URL es relativa (empieza con /), construir la URL completa usando el host actual
+  
   if (envUrl && envUrl.startsWith('/')) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    return `${protocol}//${host}${envUrl}`;
+    // Agregamos el token a la URL del stream
+    const url = `${protocol}//${host}${envUrl}`;
+    return token ? `${url}?token=${token}` : url;
   }
-
+  
   return envUrl || '';
 };
-
 export const useOpenClawSocket = () => {
   const { updateAgentStatus, addLog, setApprovalRequest } = useAgentStore();
 
