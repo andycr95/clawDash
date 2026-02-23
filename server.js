@@ -21,9 +21,28 @@ const proxy = httpProxy.createProxyServer({
 // Manejo de errores del proxy
 proxy.on('error', (err, req, res) => {
   console.error('[Proxy Error]:', err.message);
-  if (res.writeHead) {
+  if (res && res.writeHead) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end('Something went wrong in the proxy bridge.');
+  }
+});
+
+// LOGS DE CONEXIÓN WS
+proxy.on('open', (proxySocket) => {
+  console.log('✅ [Proxy] Puente WebSocket abierto con OpenClaw.');
+});
+
+proxy.on('close', (res, socket, head) => {
+  console.log('ℹ️ [Proxy] Puente WebSocket cerrado.');
+});
+
+proxy.on('proxyReqWs', (proxyReq, req, socket, options, head) => {
+  const parsed = parse(req.url, true);
+  console.log(`🔌 [Proxy] Solicitud de Upgrade WS: ${parsed.pathname}`);
+  if (parsed.query.token) {
+    console.log(`🔑 [Proxy] Token detectado en la solicitud: ${parsed.query.token.substring(0, 8)}...`);
+  } else {
+    console.warn('⚠️ [Proxy] ¡ADVERTENCIA! No se detectó token en la solicitud de WS.');
   }
 });
 
