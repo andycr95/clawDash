@@ -4,24 +4,31 @@ import { useEffect, useRef } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { useAgentStore, AgentStatus, TerminalLog, ApprovalRequest } from '../store/useAgentStore';
 
+
+// Event types from OpenClaw server
+type OpenClawEvent =
+  | { type: 'agent_status_change'; agentId: string; status: AgentStatus }
+  | { type: 'terminal_log'; agentId: string; log: string; timestamp: string }
+  | { type: 'human_approval_required'; agentId: string; action: string; actionId: string };
+
 const getWsUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_OPENCLAW_WS_URL;
-  
+
   if (typeof window === 'undefined') return '';
-  
+
   // Si la URL es relativa (empieza con /), construir la URL completa usando el host actual
   if (envUrl && envUrl.startsWith('/')) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     return `${protocol}//${host}${envUrl}`;
   }
-  
+
   return envUrl || '';
 };
 
 export const useOpenClawSocket = () => {
   const { updateAgentStatus, addLog, setApprovalRequest } = useAgentStore();
-  
+
   const { lastJsonMessage, readyState } = useWebSocket(getWsUrl(), {
     shouldReconnect: () => true,
     reconnectInterval: (attemptNumber) => Math.min(Math.pow(2, attemptNumber) * 1000, 30000), // Max 30s
@@ -35,12 +42,12 @@ export const useOpenClawSocket = () => {
   useEffect(() => {
     if (lastJsonMessage) {
       const event = lastJsonMessage as OpenClawEvent;
-      
+
       switch (event.type) {
         case 'agent_status_change':
           updateAgentStatus(event.agentId, event.status);
           break;
-        
+
         case 'terminal_log':
           addLog(event.agentId, {
             agentId: event.agentId,
@@ -48,7 +55,7 @@ export const useOpenClawSocket = () => {
             timestamp: event.timestamp || new Date().toISOString(),
           });
           break;
-          
+
         case 'human_approval_required':
           setApprovalRequest(event.agentId, {
             agentId: event.agentId,
@@ -56,7 +63,7 @@ export const useOpenClawSocket = () => {
             actionId: event.actionId,
           });
           break;
-          
+
         default:
           console.warn('Unknown event type:', (event as any).type);
           break;
