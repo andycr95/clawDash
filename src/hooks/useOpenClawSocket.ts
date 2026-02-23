@@ -17,15 +17,21 @@ const getWsUrl = () => {
   
   if (typeof window === 'undefined') return '';
   
-  if (envUrl && envUrl.startsWith('/')) {
+  let url = envUrl || '';
+
+  if (url.startsWith('/')) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    // Agregamos el token a la URL del stream
-    const url = `${protocol}//${host}${envUrl}`;
-    return token ? `${url}?token=${token}` : url;
+    url = `${protocol}//${host}${url}`;
   }
   
-  return envUrl || '';
+  // Agregar token si existe y no está ya en la URL
+  if (token && !url.includes('token=')) {
+    const separator = url.includes('?') ? '&' : '?';
+    url = `${url}${separator}token=${token}`;
+  }
+
+  return url;
 };
 export const useOpenClawSocket = () => {
   const { updateAgentStatus, addLog, setApprovalRequest } = useAgentStore();
