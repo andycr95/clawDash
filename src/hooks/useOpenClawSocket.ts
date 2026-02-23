@@ -4,20 +4,25 @@ import { useEffect, useRef } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { useAgentStore, AgentStatus, TerminalLog, ApprovalRequest } from '../store/useAgentStore';
 
-const WS_URL = process.env.NEXT_PUBLIC_OPENCLAW_WS_URL || 'ws://localhost:8000/api/v1/stream';
-
-// Event types from OpenClaw server
-type OpenClawEvent =
-  | { type: 'agent_status_change'; agentId: string; status: AgentStatus }
-  | { type: 'terminal_log'; agentId: string; log: string; timestamp: string }
-  | { type: 'human_approval_required'; agentId: string; action: string; actionId: string };
+const getWsUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_OPENCLAW_WS_URL;
+  
+  if (typeof window === 'undefined') return '';
+  
+  // Si la URL es relativa (empieza con /), construir la URL completa usando el host actual
+  if (envUrl && envUrl.startsWith('/')) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}${envUrl}`;
+  }
+  
+  return envUrl || '';
+};
 
 export const useOpenClawSocket = () => {
   const { updateAgentStatus, addLog, setApprovalRequest } = useAgentStore();
   
-  // Exponential backoff strategy
-  // Note: react-use-websocket handles reconnection automatically if specified
-  const { lastJsonMessage, readyState } = useWebSocket(WS_URL, {
+  const { lastJsonMessage, readyState } = useWebSocket(getWsUrl(), {
     shouldReconnect: () => true,
     reconnectInterval: (attemptNumber) => Math.min(Math.pow(2, attemptNumber) * 1000, 30000), // Max 30s
     reconnectAttempts: 10,

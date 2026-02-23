@@ -1,7 +1,12 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_OPENCLAW_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_OPENCLAW_API_URL || '/api/v1';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  // Aseguramos que la URL sea absoluta si estamos en el servidor, 
+  // o relativa si estamos en el cliente.
+  const isServer = typeof window === 'undefined';
+  const baseUrl = isServer ? 'http://127.0.0.1:3000' + API_BASE_URL : API_BASE_URL;
+  
+  const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
