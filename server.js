@@ -72,16 +72,22 @@ app.prepare().then(() => {
 
   // 3. Interceptar y Puente de WebSockets (Crucial para el Firehose)
   server.on('upgrade', (req, socket, head) => {
-    const { pathname } = parse(req.url);
+    const parsed = parse(req.url, true);
     
     // Si la petición es al stream de OpenClaw, la puenteamos
-    if (pathname.startsWith('/api/v1/stream')) {
-      console.log('[Proxy] Upgrading WebSocket connection to OpenClaw');
+    if (parsed.pathname.startsWith('/api/v1/stream')) {
+      const token = parsed.query.token;
+      
+      if (token) {
+        // Mover token a Header para cumplir con la política de seguridad de OpenClaw
+        req.headers['authorization'] = `Bearer ${token}`;
+        // Limpiar URL para que no contenga el query param rechazado
+        req.url = parsed.pathname;
+        console.log(`[Proxy] WebSocket Upgrade: Header de Auth inyectado.`);
+      }
+
       return proxy.ws(req, socket, head);
     }
-    
-    // De lo contrario, dejar que el servidor de Next.js lo maneje si es necesario (ej. HMR en dev)
-    // Pero solo si no es el stream de OpenClaw
   });
 
   server.listen(port, (err) => {

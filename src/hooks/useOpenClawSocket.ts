@@ -12,26 +12,11 @@ type OpenClawEvent =
   | { type: 'human_approval_required'; agentId: string; action: string; actionId: string };
 
 const getWsUrl = () => {
-  const envUrl = process.env.NEXT_PUBLIC_OPENCLAW_WS_URL;
-  const token = process.env.NEXT_PUBLIC_OPENCLAW_TOKEN;
-  
   if (typeof window === 'undefined') return '';
-  
-  let url = envUrl || '';
-
-  if (url.startsWith('/')) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    url = `${protocol}//${host}${url}`;
-  }
-  
-  // Agregar token si existe y no está ya en la URL
-  if (token && !url.includes('token=')) {
-    const separator = url.includes('?') ? '&' : '?';
-    url = `${url}${separator}token=${token}`;
-  }
-
-  return url;
+  const token = process.env.NEXT_PUBLIC_OPENCLAW_TOKEN;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  return `${protocol}//${host}/api/v1/stream${token ? `?token=${token}` : ''}`;
 };
 export const useOpenClawSocket = () => {
   const { updateAgentStatus, addLog, setApprovalRequest } = useAgentStore();

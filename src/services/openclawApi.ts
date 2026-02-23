@@ -10,6 +10,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(token ? { 'x-openclaw-token': token } : {}), // Header redundante por seguridad
       ...options?.headers,
     },
   });
@@ -19,27 +20,70 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(error.message || `HTTP error! status: ${response.status}`);
   }
 
-  if (response.status === 204) return {} as T;
+  if (response.status === 202 || response.status === 204) return {} as T;
   
   return response.json();
 }
 
 export const openClawApi = {
-  stopAgent: (agentId: string) => 
-    request(`/agents/${agentId}/stop`, { method: 'POST' }),
-
-  stopAllAgents: () => 
-    request('/agents/stop-all', { method: 'POST' }),
-
-  injectCommand: (agentId: string, command: string) =>
-    request(`/agents/${agentId}/inject`, {
+  /**
+   * Despierta al sistema (Wake)
+   */
+  wake: (text: string) => 
+    request('/hooks/wake', {
       method: 'POST',
-      body: JSON.stringify({ command }),
+      body: JSON.stringify({ text, mode: 'now' }),
     }),
 
-  approveAction: (agentId: string, actionId: string, approved: boolean) =>
-    request(`/agents/${agentId}/approve`, {
+  /**
+   * Envía un mensaje a un agente específico (Usa el endpoint de Webhook)
+   */
+  injectCommand: (agentId: string, message: string) =>
+    request('/hooks/agent', {
       method: 'POST',
-      body: JSON.stringify({ actionId, approved }),
+      body: JSON.stringify({ 
+        agentId, 
+        message, 
+        wakeMode: 'now',
+        deliver: true 
+      }),
+    }),
+
+  /**
+   * Detiene un agente (Kill switch)
+   */
+  stopAgent: (agentId: string) => 
+    request('/hooks/agent', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        agentId, 
+        message: '/stop', // Enviamos el comando de stop vía webhook
+        wakeMode: 'now'
+      }),
+    }),
+
+  /**
+   * Detiene todos los agentes (Kill switch global)
+   */
+  stopAllAgents: () => 
+    request('/hooks/agent', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        message: '/stopall',
+        wakeMode: 'now'
+      }),
+    }),
+
+  /**
+   * Aprueba o rechaza una acción bloqueada
+   */
+  approveAction: (agentId: string, actionId: string, approved: boolean) =>
+    request('/hooks/agent', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        agentId,
+        message: approved ? `/approve ${actionId}` : `/dismiss ${actionId}`,
+        wakeMode: 'now'
+      }),
     }),
 };
